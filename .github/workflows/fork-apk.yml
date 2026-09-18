@@ -1,0 +1,94 @@
+name: fork-apk
+
+# Fork-only workflow: lives on an orphan branch (fork/build-apk) so it never
+# appears in branches/PRs based on main and cannot leak into upstream.
+# Builds an installable release APK after format + tests pass.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref to build (branch, tag or SHA)"
+        required: false
+        default: "main"
+
+concurrency:
+  group: fork-apk-${{ inputs.ref || 'main' }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+      - name: Setup Flutter
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: latest
+          cache: true
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed .
+      - run: flutter test
+
+  apk:
+    name: Build release APK
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: -Xmx8g
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android
+          key: android-sdk-${{ runner.os }}-${{ hashFiles('android/app/build.gradle') }}
+          restore-keys: |
+            android-sdk-${{ runner.os }}-
+      - name: Setup Flutter
+        uses: flutter-actions/setup-flutter@v4
+        with:
+          channel: stable
+          version: latest
+          cache: true
+      - run: flutter pub get
+
+      - name: Create fork signing keystore
+        working-directory: android/app
+        run: |
+          keytool -genkeypair -v \
+            -keystore fork-release.jks \
+            -storepass vikunja-fork -keypass vikunja-fork \
+            -alias fork-key -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Vikunja Fork Build, O=Fork"
+
+      - name: Create key.properties
+        working-directory: android
+        run: |
+          printf 'storePassword=vikunja-fork\nkeyPassword=vikunja-fork\nkeyAlias=fork-key\nstoreFile=fork-release.jks\n' > key.properties
+
+      - name: Stamp build number
+        run: |
+          BASE=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
+          sed -i "s/^version: .*/version: ${BASE}+${{ github.run_number }}/" pubspec.yaml
+
+      - run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vikunja-fork-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
