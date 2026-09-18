@@ -5,16 +5,17 @@ name: fork-apk
 # Builds an installable release APK after format + tests pass.
 
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "Ref to build (branch, tag or SHA)"
-        required: false
-        default: "main"
+  push:
+    branches:
+      - fork/build-apk
 
 concurrency:
-  group: fork-apk-${{ inputs.ref || 'main' }}
+  group: fork-apk
   cancel-in-progress: true
+
+env:
+  # Branch/tag to build — change and re-push this file to retarget.
+  BUILD_REF: main
 
 jobs:
   test:
@@ -24,7 +25,7 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || 'main' }}
+          ref: ${{ env.BUILD_REF }}
       - name: Setup Flutter
         uses: flutter-actions/setup-flutter@v4
         with:
@@ -45,7 +46,7 @@ jobs:
       - name: Clone repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || 'main' }}
+          ref: ${{ env.BUILD_REF }}
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
