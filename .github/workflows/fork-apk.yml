@@ -69,19 +69,17 @@ jobs:
           cache: true
       - run: flutter pub get
 
-      - name: Create fork signing keystore
+      - name: Restore fork signing keystore
         working-directory: android/app
         run: |
-          keytool -genkeypair -v \
-            -keystore fork-release.jks \
-            -storepass vikunja-fork -keypass vikunja-fork \
-            -alias fork-key -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Vikunja Fork Build, O=Fork"
+          echo "${{ secrets.FORK_KEYSTORE_BASE64 }}" | base64 -d > fork-release.jks
 
       - name: Create key.properties
         working-directory: android
         run: |
-          printf 'storePassword=vikunja-fork\nkeyPassword=vikunja-fork\nkeyAlias=fork-key\nstoreFile=fork-release.jks\n' > key.properties
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=fork-key\nstoreFile=fork-release.jks\n' \
+            "${{ secrets.FORK_KEYSTORE_PASSWORD }}" \
+            "${{ secrets.FORK_KEYSTORE_PASSWORD }}" > key.properties
 
       - name: Stamp build number
         run: |
