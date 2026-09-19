@@ -40,6 +40,8 @@ jobs:
     name: Build release APK
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       GRADLE_OPTS: -Xmx8g
     steps:
@@ -85,6 +87,7 @@ jobs:
         run: |
           BASE=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
           sed -i "s/^version: .*/version: ${BASE}+${{ github.run_number }}/" pubspec.yaml
+          echo "PUBSPEC_BASE=$BASE" >> $GITHUB_ENV
 
       - run: flutter build apk --release
 
@@ -93,3 +96,18 @@ jobs:
         with:
           name: vikunja-fork-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Create pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${PUBSPEC_BASE}-fork.${{ github.run_number }}"
+          SHA=$(git rev-parse HEAD)
+          APK="vikunja-fork-${TAG}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
+          gh release create "$TAG" \
+            --target "$SHA" \
+            --title "Vikunja fork build ${{ github.run_number }}" \
+            --notes "Automated pre-release from \`${BUILD_REF}\` @ ${SHA:0:7} (run #${{ github.run_number }}). Tests passed; release APK signed with the fork keystore." \
+            --prerelease || true
+          gh release upload "$TAG" "$APK" --clobber
