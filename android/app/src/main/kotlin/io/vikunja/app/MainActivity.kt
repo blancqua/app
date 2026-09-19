@@ -8,23 +8,24 @@ import io.flutter.plugin.common.MethodChannel
 
 /**
  * App not open:
- *  - After click on tile or share onCreate is called
+ *  - After click on tile, share or a widget task row onCreate is called
  *  - Then configureFlutterEngine is called.
  *    This the the launch method for later and registers a method channel
  *  - After that "isQuickTile" is called from flutter code to check
  *    if the launch method was set and if parameter were passed
- *  - If so the add task dialog is shown
+ *  - If so the add task dialog is shown or the tapped task opened
  *
  * App open:
  *  - When the flutter application start a method channel is registered
- *  - After click on tile or share onCreate is called
+ *  - After click on tile, share or a widget task row onCreate is called
  *  - Then onNewIntent is called.
  *  - This register a method channel and direclty calles flutter code
- *    to show the add taks dialog
+ *    to show the add taks dialog or open the tapped task
  *
  */
 class MainActivity : FlutterActivity() {
     private var launchMethod: String? = null
+    private var launchArgument: String? = null
     private val CHANNEL = "vikunja"
 
     override fun onNewIntent(intent: Intent) {
@@ -34,17 +35,16 @@ class MainActivity : FlutterActivity() {
 
     private fun callFlutterCode(intent: Intent, flutterEngine: FlutterEngine) {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        val action: String? = intent.action
-        val type: String? = intent.type
 
-        when (action) {
-            Intent.ACTION_INSERT -> {
-                if (INTENT_TYPE_ADD_TASK == type) {
-                    channel.invokeMethod("open_add_task", "")
-                }
+        when (intent.action) {
+            Intent.ACTION_INSERT -> when (intent.type) {
+                INTENT_TYPE_ADD_TASK -> channel.invokeMethod("open_add_task", "")
+                INTENT_TYPE_OPEN_TASK -> channel.invokeMethod(
+                    "open_task", intent.getStringExtra(EXTRA_TASK_ID)
+                )
             }
 
-            Intent.ACTION_SEND if "text/plain" == type -> {
+            Intent.ACTION_SEND if "text/plain" == intent.type -> {
                 channel.invokeMethod("open_add_task", intent.getStringExtra(Intent.EXTRA_TEXT))
             }
 
@@ -63,18 +63,18 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun setLaunchMethod(intent: Intent) {
-        val action: String? = intent.action
-        val type: String? = intent.type
-
-        when (action) {
-            Intent.ACTION_INSERT -> {
-                if (INTENT_TYPE_ADD_TASK == type) {
-                    launchMethod = "open_add_task"
+        when (intent.action) {
+            Intent.ACTION_INSERT -> when (intent.type) {
+                INTENT_TYPE_ADD_TASK -> launchMethod = "open_add_task"
+                INTENT_TYPE_OPEN_TASK -> {
+                    launchMethod = "open_task"
+                    launchArgument = intent.getStringExtra(EXTRA_TASK_ID)
                 }
             }
 
-            Intent.ACTION_SEND if "text/plain" == type -> {
+            Intent.ACTION_SEND if "text/plain" == intent.type -> {
                 launchMethod = "open_add_task"
+                launchArgument = intent.getStringExtra(Intent.EXTRA_TEXT)
             }
 
             else -> {
@@ -87,13 +87,15 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger, CHANNEL
         ).setMethodCallHandler { call, result ->
             if (call.method?.contentEquals("isQuickTile") == true) {
-                if (launchMethod == "open_add_task") {
-                    result.success(intent.getStringExtra(Intent.EXTRA_TEXT))
+                val method = launchMethod
+                if (method != null) {
+                    result.success(mapOf("method" to method, "argument" to launchArgument))
                 } else {
                     result.error("1", null, null)
                 }
 
                 launchMethod = null
+                launchArgument = null
             }
         }
     }
