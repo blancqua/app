@@ -15,7 +15,7 @@ concurrency:
 
 env:
   # Branch/tag to build — change and re-push this file to retarget.
-  BUILD_REF: fix/default-project-saved-filter
+  BUILD_REF: feat/widget-settings-separate-filters
 
 jobs:
   test:
