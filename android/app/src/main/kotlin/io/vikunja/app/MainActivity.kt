@@ -38,13 +38,14 @@ class MainActivity : FlutterActivity() {
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
         when (intent.action) {
-            Intent.ACTION_INSERT -> when (intent.type) {
-                INTENT_TYPE_ADD_TASK -> channel.invokeMethod("open_add_task", "")
-                INTENT_TYPE_OPEN_TASK -> {
+            Intent.ACTION_INSERT -> when {
+                isOpenTaskIntent(intent) -> {
                     val taskId = taskIDFromIntent(intent)
                     Log.d("VikunjaWidget", "onNewIntent open_task taskId=$taskId")
                     channel.invokeMethod("open_task", taskId)
                 }
+                INTENT_TYPE_ADD_TASK == intent.type ->
+                    channel.invokeMethod("open_add_task", "")
             }
 
             Intent.ACTION_SEND if "text/plain" == intent.type -> {
@@ -54,6 +55,14 @@ class MainActivity : FlutterActivity() {
             else -> {
             }
         }
+    }
+
+    private fun isOpenTaskIntent(intent: Intent): Boolean {
+        // The widget row action carries vikunja-app://openTask?taskID=N as its
+        // data URI. Match on the URI first: Intent.setData() clears the MIME
+        // type, so the OPEN_TASK type flag does not survive the trip.
+        return INTENT_TYPE_OPEN_TASK == intent.type ||
+            intent.data?.host == "openTask"
     }
 
     private fun taskIDFromIntent(intent: Intent): String? {
@@ -74,12 +83,13 @@ class MainActivity : FlutterActivity() {
 
     private fun setLaunchMethod(intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_INSERT -> when (intent.type) {
-                INTENT_TYPE_ADD_TASK -> launchMethod = "open_add_task"
-                INTENT_TYPE_OPEN_TASK -> {
+            Intent.ACTION_INSERT -> when {
+                isOpenTaskIntent(intent) -> {
                     launchMethod = "open_task"
                     launchArgument = taskIDFromIntent(intent)
                 }
+                INTENT_TYPE_ADD_TASK == intent.type ->
+                    launchMethod = "open_add_task"
             }
 
             Intent.ACTION_SEND if "text/plain" == intent.type -> {
