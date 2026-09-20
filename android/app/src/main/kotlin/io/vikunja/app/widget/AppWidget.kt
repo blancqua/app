@@ -137,6 +137,11 @@ class AppWidget : GlanceAppWidget() {
         Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_INSERT
             type = INTENT_TYPE_OPEN_TASK
+            // The id travels both as an extra and in the data URI: the URI
+            // survives PendingIntent round-trips by design and keeps every
+            // row's PendingIntent unique, mirroring the completeTask action.
+            data = "vikunja-app://openTask".toUri().buildUpon()
+                .appendQueryParameter("taskID", taskId).build()
             putExtra(EXTRA_TASK_ID, taskId)
         }
 

@@ -138,11 +138,15 @@ class HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> openTaskFromWidget(String? taskId) async {
+    developer.log('open_task from widget, taskId=$taskId');
     final task = await ref
         .read(widgetLaunchControllerProvider)
         .openTask(taskId);
 
-    if (!mounted) return;
+    if (!mounted) {
+      developer.log('open_task: HomePage unmounted, dropping navigation');
+      return;
+    }
     if (task == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context).failedToOpenTask)),

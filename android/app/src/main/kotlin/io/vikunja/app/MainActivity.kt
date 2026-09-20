@@ -1,6 +1,7 @@
 package io.vikunja.app
 
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -39,9 +40,11 @@ class MainActivity : FlutterActivity() {
         when (intent.action) {
             Intent.ACTION_INSERT -> when (intent.type) {
                 INTENT_TYPE_ADD_TASK -> channel.invokeMethod("open_add_task", "")
-                INTENT_TYPE_OPEN_TASK -> channel.invokeMethod(
-                    "open_task", intent.getStringExtra(EXTRA_TASK_ID)
-                )
+                INTENT_TYPE_OPEN_TASK -> {
+                    val taskId = taskIDFromIntent(intent)
+                    Log.d("VikunjaWidget", "onNewIntent open_task taskId=$taskId")
+                    channel.invokeMethod("open_task", taskId)
+                }
             }
 
             Intent.ACTION_SEND if "text/plain" == intent.type -> {
@@ -51,6 +54,13 @@ class MainActivity : FlutterActivity() {
             else -> {
             }
         }
+    }
+
+    private fun taskIDFromIntent(intent: Intent): String? {
+        // The widget sends the id as an extra and in the data URI; prefer the
+        // extra, fall back to the URI if extras were dropped.
+        return intent.getStringExtra(EXTRA_TASK_ID)
+            ?: intent.data?.getQueryParameter("taskID")
     }
 
 
@@ -68,7 +78,7 @@ class MainActivity : FlutterActivity() {
                 INTENT_TYPE_ADD_TASK -> launchMethod = "open_add_task"
                 INTENT_TYPE_OPEN_TASK -> {
                     launchMethod = "open_task"
-                    launchArgument = intent.getStringExtra(EXTRA_TASK_ID)
+                    launchArgument = taskIDFromIntent(intent)
                 }
             }
 
@@ -80,6 +90,12 @@ class MainActivity : FlutterActivity() {
             else -> {
             }
         }
+
+        Log.d(
+            "VikunjaWidget",
+            "cold start launch: action=${intent.action} type=${intent.type} " +
+                "method=$launchMethod argument=$launchArgument data=${intent.data}"
+        )
     }
 
     private fun registerMethodChannel(flutterEngine: FlutterEngine) {
@@ -88,6 +104,10 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler { call, result ->
             if (call.method?.contentEquals("isQuickTile") == true) {
                 val method = launchMethod
+                Log.d(
+                    "VikunjaWidget",
+                    "isQuickTile poll: method=$method argument=$launchArgument"
+                )
                 if (method != null) {
                     result.success(mapOf("method" to method, "argument" to launchArgument))
                 } else {
