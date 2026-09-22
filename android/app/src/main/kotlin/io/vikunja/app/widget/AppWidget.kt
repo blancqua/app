@@ -153,22 +153,28 @@ class AppWidget : GlanceAppWidget() {
         val widgetTitle = prefs.getString("widget_title_$appWidgetId", "Vikunja") ?: "Vikunja"
         val widgetTheme =
             WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
-        val colors = WidgetColors.forTheme(widgetTheme)
+        val widgetOpacity =
+            WidgetOpacity.fromPref(prefs.getString("widget_opacity_$appWidgetId", null))
+        val colors = WidgetColors.forTheme(widgetTheme, widgetOpacity)
         val otherSectionLabel = when (viewType) {
             "upcoming" -> "This Week:"
             "inbox", "project" -> "Tasks:"
             else -> "Overdue:"
         }
 
+        // Single background paint at the root: rows and the list used to paint
+        // the same surface color again, which is invisible while opaque but
+        // composites (bands) once the surface carries transparency.
         Column(
-            modifier = GlanceModifier.fillMaxHeight(), verticalAlignment = Alignment.Top
+            modifier = GlanceModifier.fillMaxSize().background(colors.surface),
+            verticalAlignment = Alignment.Top
         ) {
             WidgetTitleBar(widgetTitle, colors)
             if (todayTasks.isEmpty() and otherTasks.isEmpty()) {
                 EmptyView(colors)
             } else {
                 LazyColumn(
-                    modifier = GlanceModifier.fillMaxHeight().background(colors.surface).padding(8.dp)
+                    modifier = GlanceModifier.fillMaxHeight().padding(8.dp)
                 ) {
                     if (todayTasks.isNotEmpty()) {
                         item {
@@ -246,8 +252,7 @@ class AppWidget : GlanceAppWidget() {
         showDate: Boolean = false
     ) {
         Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(8.dp)
-                .background(colors.surface),
+            modifier = GlanceModifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CheckBox(
@@ -296,8 +301,7 @@ class AppWidget : GlanceAppWidget() {
     @Composable
     private fun EmptyView(colors: WidgetColors) {
         Box(
-            modifier = GlanceModifier.fillMaxSize()
-                .background(colors.surface),
+            modifier = GlanceModifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             Text(

@@ -22,6 +22,18 @@ enum class WidgetTheme(val prefName: String) {
 }
 
 /**
+ * Background opacity preference of a single widget instance (percent 0-100),
+ * persisted by [WidgetConfigureActivity] under `widget_opacity_<id>`.
+ */
+object WidgetOpacity {
+    /** Percent backing an absent or corrupt preference: solid, like pre-opacity widgets. */
+    const val DEFAULT = 100
+
+    /** Parses a stored preference value; out-of-range values clamp, junk falls back to [DEFAULT]. */
+    fun fromPref(value: String?): Int = value?.toIntOrNull()?.coerceIn(0, 100) ?: DEFAULT
+}
+
+/**
  * The palette a widget instance renders with: the surfaces and texts the
  * widget paints itself, resolved from the instance's [WidgetTheme].
  *
@@ -29,9 +41,10 @@ enum class WidgetTheme(val prefName: String) {
  * color so the system dark mode stops mattering, while [WidgetTheme.AUTO] keeps
  * the pair distinct and lets the system resolve (and re-resolve) it.
  *
- * Glance-defaulted controls (row checkboxes, header icon buttons) keep their
- * own system-following colors; the opacity and dynamic-color slices ride on
- * this palette.
+ * [backgroundOpacityPercent] fades the background roles (surface, title bar)
+ * only — texts stay fully opaque. Glance-defaulted controls (row checkboxes,
+ * header icon buttons) keep their own system-following colors; the dynamic-color
+ * slice rides on this palette.
  */
 data class WidgetColors(
     val surface: ColorProvider,
@@ -47,29 +60,37 @@ data class WidgetColors(
         private val dayTitleBar = Color(0xFF126cfd)
         private val nightTitleBar = Color(0xFF013992)
 
-        fun forTheme(theme: WidgetTheme): WidgetColors = when (theme) {
-            WidgetTheme.AUTO -> WidgetColors(
-                surface = dayNight(daySurface, nightSurface),
-                text = dayNight(dayText, nightText),
-                titleBarBackground = dayNight(dayTitleBar, nightTitleBar),
-                titleBarText = dayNight(dayText, nightText),
-            )
-            WidgetTheme.LIGHT -> WidgetColors(
-                surface = fixed(daySurface),
-                text = fixed(dayText),
-                titleBarBackground = fixed(dayTitleBar),
-                titleBarText = fixed(dayText),
-            )
-            WidgetTheme.DARK -> WidgetColors(
-                surface = fixed(nightSurface),
-                text = fixed(nightText),
-                titleBarBackground = fixed(nightTitleBar),
-                titleBarText = fixed(nightText),
-            )
+        fun forTheme(
+            theme: WidgetTheme,
+            backgroundOpacityPercent: Int = WidgetOpacity.DEFAULT,
+        ): WidgetColors {
+            val alpha = backgroundOpacityPercent.coerceIn(0, 100) / 100f
+            return when (theme) {
+                WidgetTheme.AUTO -> WidgetColors(
+                    surface = dayNight(daySurface, nightSurface, alpha),
+                    text = dayNight(dayText, nightText),
+                    titleBarBackground = dayNight(dayTitleBar, nightTitleBar, alpha),
+                    titleBarText = dayNight(dayText, nightText),
+                )
+                WidgetTheme.LIGHT -> WidgetColors(
+                    surface = fixed(daySurface, alpha),
+                    text = fixed(dayText),
+                    titleBarBackground = fixed(dayTitleBar, alpha),
+                    titleBarText = fixed(dayText),
+                )
+                WidgetTheme.DARK -> WidgetColors(
+                    surface = fixed(nightSurface, alpha),
+                    text = fixed(nightText),
+                    titleBarBackground = fixed(nightTitleBar, alpha),
+                    titleBarText = fixed(nightText),
+                )
+            }
         }
 
-        private fun fixed(color: Color) = ColorProvider(color, color)
+        private fun fixed(color: Color, alpha: Float = 1f) =
+            ColorProvider(color.copy(alpha = alpha), color.copy(alpha = alpha))
 
-        private fun dayNight(day: Color, night: Color) = ColorProvider(day, night)
+        private fun dayNight(day: Color, night: Color, alpha: Float = 1f) =
+            ColorProvider(day.copy(alpha = alpha), night.copy(alpha = alpha))
     }
 }
