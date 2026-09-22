@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.SeekBar
@@ -60,6 +61,8 @@ class WidgetConfigureActivity : Activity() {
         val currentProjectId = prefs.getString("widget_project_id_$appWidgetId", "0")?.toIntOrNull() ?: 0
         val currentTheme = WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
         val currentOpacity = WidgetOpacity.fromPref(prefs.getString("widget_opacity_$appWidgetId", null))
+        val currentDynamicColor =
+            WidgetDynamicColor.fromPref(prefs.getString("widget_dynamic_color_$appWidgetId", null))
 
         val scrollView = findViewById<ScrollView>(R.id.scroll_view)
         val radioGroup = findViewById<RadioGroup>(R.id.view_radio_group)
@@ -71,6 +74,7 @@ class WidgetConfigureActivity : Activity() {
         val saveButton = findViewById<Button>(R.id.save_button)
         val opacitySeekbar = findViewById<SeekBar>(R.id.opacity_seekbar)
         val opacityValue = findViewById<TextView>(R.id.opacity_value)
+        val dynamicColorCheckbox = findViewById<CheckBox>(R.id.dynamic_color_checkbox)
 
         // Saved filters arrive as pseudo-projects with negative ids; they are
         // valid widget views but get their own radio + picker, kept out of the
@@ -130,6 +134,12 @@ class WidgetConfigureActivity : Activity() {
             WidgetTheme.AUTO -> themeRadioGroup.check(R.id.radio_theme_auto)
         }
 
+        if (WidgetDynamicColors.isSupported()) {
+            dynamicColorCheckbox.isChecked = currentDynamicColor
+        } else {
+            dynamicColorCheckbox.visibility = View.GONE
+        }
+
         opacitySeekbar.progress = currentOpacity
         opacityValue.text = "$currentOpacity%"
         opacitySeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -184,6 +194,7 @@ class WidgetConfigureActivity : Activity() {
             editor.putString("widget_view_$appWidgetId", viewName)
             editor.putString("widget_theme_$appWidgetId", selectedTheme.prefName)
             editor.putString("widget_opacity_$appWidgetId", opacitySeekbar.progress.toString())
+            editor.putString("widget_dynamic_color_$appWidgetId", dynamicColorCheckbox.isChecked.toString())
 
             if (viewName == "project") {
                 val spinner = if (isFilterSelection) filterSpinner else projectSpinner

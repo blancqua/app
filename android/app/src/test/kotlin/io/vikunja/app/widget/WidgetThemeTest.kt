@@ -203,4 +203,115 @@ class WidgetThemeTest {
                 .alpha,
         )
     }
+
+    // --- dynamic color (Material You) ---
+
+    /** Distinct color per role and side, so every mapping assertion is unambiguous. */
+    private fun fakeDynamicPalette() = WidgetPalette(
+        daySurface = Color(0xFF010203),
+        dayText = Color(0xFF040506),
+        dayTitleBar = Color(0xFF070809),
+        dayTitleBarText = Color(0xFF0a0b0c),
+        nightSurface = Color(0xFF0d0e0f),
+        nightText = Color(0xFF101112),
+        nightTitleBar = Color(0xFF131415),
+        nightTitleBarText = Color(0xFF161718),
+    )
+
+    @Test
+    fun `null dynamic-color preference resolves to off`() {
+        assertEquals(false, WidgetDynamicColor.fromPref(null))
+    }
+
+    @Test
+    fun `dynamic-color preference parses true and false`() {
+        assertEquals(true, WidgetDynamicColor.fromPref("true"))
+        assertEquals(false, WidgetDynamicColor.fromPref("false"))
+    }
+
+    @Test
+    fun `unknown or corrupt dynamic-color preference falls back to off`() {
+        assertEquals(false, WidgetDynamicColor.fromPref(""))
+        assertEquals(false, WidgetDynamicColor.fromPref("True"))
+        assertEquals(false, WidgetDynamicColor.fromPref("1"))
+        assertEquals(false, WidgetDynamicColor.fromPref("yes"))
+    }
+
+    @Test
+    fun `absent dynamic palette keeps the standard palette in every theme`() {
+        for (theme in WidgetTheme.entries) {
+            assertEquals(
+                WidgetColors.forTheme(theme),
+                WidgetColors.forTheme(theme, dynamicPalette = null),
+            )
+        }
+    }
+
+    @Test
+    fun `dynamic palette overrides every role in auto theme`() {
+        val dyn = fakeDynamicPalette()
+        val colors = WidgetColors.forTheme(WidgetTheme.AUTO, dynamicPalette = dyn)
+
+        assertEquals(dyn.daySurface, colors.surface.getColor(false))
+        assertEquals(dyn.nightSurface, colors.surface.getColor(true))
+        assertEquals(dyn.dayText, colors.text.getColor(false))
+        assertEquals(dyn.nightText, colors.text.getColor(true))
+        assertEquals(dyn.dayTitleBar, colors.titleBarBackground.getColor(false))
+        assertEquals(dyn.nightTitleBar, colors.titleBarBackground.getColor(true))
+        assertEquals(dyn.dayTitleBarText, colors.titleBarText.getColor(false))
+        assertEquals(dyn.nightTitleBarText, colors.titleBarText.getColor(true))
+    }
+
+    @Test
+    fun `light theme pins the dynamic day palette regardless of system theme`() {
+        val dyn = fakeDynamicPalette()
+        val colors = WidgetColors.forTheme(WidgetTheme.LIGHT, dynamicPalette = dyn)
+
+        for (isNight in listOf(false, true)) {
+            assertEquals(dyn.daySurface, colors.surface.getColor(isNight))
+            assertEquals(dyn.dayText, colors.text.getColor(isNight))
+            assertEquals(dyn.dayTitleBar, colors.titleBarBackground.getColor(isNight))
+            assertEquals(dyn.dayTitleBarText, colors.titleBarText.getColor(isNight))
+        }
+    }
+
+    @Test
+    fun `dark theme pins the dynamic night palette regardless of system theme`() {
+        val dyn = fakeDynamicPalette()
+        val colors = WidgetColors.forTheme(WidgetTheme.DARK, dynamicPalette = dyn)
+
+        for (isNight in listOf(false, true)) {
+            assertEquals(dyn.nightSurface, colors.surface.getColor(isNight))
+            assertEquals(dyn.nightText, colors.text.getColor(isNight))
+            assertEquals(dyn.nightTitleBar, colors.titleBarBackground.getColor(isNight))
+            assertEquals(dyn.nightTitleBarText, colors.titleBarText.getColor(isNight))
+        }
+    }
+
+    @Test
+    fun `opacity fades dynamic backgrounds but keeps dynamic texts opaque`() {
+        val dyn = fakeDynamicPalette()
+        for (theme in WidgetTheme.entries) {
+            val colors = WidgetColors.forTheme(theme, backgroundOpacityPercent = 0, dynamicPalette = dyn)
+            for (isNight in listOf(false, true)) {
+                assertEquals(0f, colors.surface.getColor(isNight).alpha)
+                assertEquals(0f, colors.titleBarBackground.getColor(isNight).alpha)
+                assertEquals(1f, colors.text.getColor(isNight).alpha)
+                assertEquals(1f, colors.titleBarText.getColor(isNight).alpha)
+            }
+        }
+    }
+
+    @Test
+    fun `mid opacity halves dynamic background alpha without touching the colors`() {
+        val dyn = fakeDynamicPalette()
+        val colors = WidgetColors.forTheme(WidgetTheme.AUTO, backgroundOpacityPercent = 50, dynamicPalette = dyn)
+
+        assertEquals(dyn.daySurface.copy(alpha = 0.5f), colors.surface.getColor(false))
+        assertEquals(dyn.nightSurface.copy(alpha = 0.5f), colors.surface.getColor(true))
+        assertEquals(dyn.dayTitleBar.copy(alpha = 0.5f), colors.titleBarBackground.getColor(false))
+        assertEquals(dyn.nightTitleBar.copy(alpha = 0.5f), colors.titleBarBackground.getColor(true))
+        assertEquals(dyn.dayText, colors.text.getColor(false))
+        assertEquals(dyn.nightText, colors.text.getColor(true))
+    }
 }
