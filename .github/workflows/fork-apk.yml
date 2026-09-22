@@ -15,7 +15,7 @@ concurrency:
 
 env:
   # Branch/tag to build — change and re-push this file to retarget.
-  BUILD_REF: fork/release
+  BUILD_REF: integration/widget-theme
 
 jobs:
   test:
