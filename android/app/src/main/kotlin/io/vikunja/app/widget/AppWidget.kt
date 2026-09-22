@@ -155,7 +155,11 @@ class AppWidget : GlanceAppWidget() {
             WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
         val widgetOpacity =
             WidgetOpacity.fromPref(prefs.getString("widget_opacity_$appWidgetId", null))
-        val colors = WidgetColors.forTheme(widgetTheme, widgetOpacity)
+        val widgetDynamicColor =
+            WidgetDynamicColor.fromPref(prefs.getString("widget_dynamic_color_$appWidgetId", null))
+        val dynamicPalette =
+            if (widgetDynamicColor) WidgetDynamicColors.palette(context) else null
+        val colors = WidgetColors.forTheme(widgetTheme, widgetOpacity, dynamicPalette)
         val otherSectionLabel = when (viewType) {
             "upcoming" -> "This Week:"
             "inbox", "project" -> "Tasks:"
