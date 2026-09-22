@@ -56,9 +56,11 @@ class WidgetConfigureActivity : Activity() {
 
         val currentView = prefs.getString("widget_view_$appWidgetId", "today") ?: "today"
         val currentProjectId = prefs.getString("widget_project_id_$appWidgetId", "0")?.toIntOrNull() ?: 0
+        val currentTheme = WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
 
         val scrollView = findViewById<ScrollView>(R.id.scroll_view)
         val radioGroup = findViewById<RadioGroup>(R.id.view_radio_group)
+        val themeRadioGroup = findViewById<RadioGroup>(R.id.theme_radio_group)
         val projectSpinner = findViewById<Spinner>(R.id.project_spinner)
         val projectLayout = findViewById<View>(R.id.project_layout)
         val filterSpinner = findViewById<Spinner>(R.id.filter_spinner)
@@ -117,6 +119,12 @@ class WidgetConfigureActivity : Activity() {
             else -> radioGroup.check(R.id.radio_today)
         }
 
+        when (currentTheme) {
+            WidgetTheme.LIGHT -> themeRadioGroup.check(R.id.radio_theme_light)
+            WidgetTheme.DARK -> themeRadioGroup.check(R.id.radio_theme_dark)
+            WidgetTheme.AUTO -> themeRadioGroup.check(R.id.radio_theme_auto)
+        }
+
         // Reset scroll to top after layout pass (prevents auto-scroll to checked radio)
         scrollView.post { scrollView.scrollTo(0, 0) }
 
@@ -149,8 +157,15 @@ class WidgetConfigureActivity : Activity() {
                 return@setOnClickListener
             }
 
+            val selectedTheme = when (themeRadioGroup.checkedRadioButtonId) {
+                R.id.radio_theme_light -> WidgetTheme.LIGHT
+                R.id.radio_theme_dark -> WidgetTheme.DARK
+                else -> WidgetTheme.AUTO
+            }
+
             val editor = prefs.edit()
             editor.putString("widget_view_$appWidgetId", viewName)
+            editor.putString("widget_theme_$appWidgetId", selectedTheme.prefName)
 
             if (viewName == "project") {
                 val spinner = if (isFilterSelection) filterSpinner else projectSpinner
