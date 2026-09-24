@@ -241,6 +241,59 @@ void main() {
       expect(store.data['widget_title_2'], 'Upcoming');
     });
 
+    test(
+      'writes an error state when the configured saved filter is gone',
+      () async {
+        final store = FakeHomeWidgetStore()
+          ..data['widget_view_7'] = 'project'
+          ..data['widget_project_id_7'] = '-3'
+          ..data['widget_project_name_7'] = 'Widget Filter Slice4'
+          ..data['WidgetTasks_7'] = '[{"id":"1","title":"cached"}]';
+        final taskService = MockTaskRepository()
+          ..getAllByProjectStub = (projectId, _) async =>
+              ErrorResponse<List<Task>>(404, {}, {'message': 'not found'});
+
+        await updateWidgetInstance('7', store: store, taskService: taskService);
+
+        expect(store.data['widget_state_7'], 'error');
+        expect(store.data['widget_title_7'], 'Widget Filter Slice4');
+        expect(store.data['WidgetTasks_7'], '[{"id":"1","title":"cached"}]');
+      },
+    );
+
+    test(
+      'writes an error state when the project view has no id stored',
+      () async {
+        final store = FakeHomeWidgetStore()
+          ..data['widget_view_7'] = 'project'
+          ..data['WidgetTasks_7'] = '[{"id":"1","title":"cached"}]';
+
+        final taskService = MockTaskRepository();
+
+        await updateWidgetInstance('7', store: store, taskService: taskService);
+
+        expect(store.data['widget_state_7'], 'error');
+        expect(store.data['widget_title_7'], 'Project');
+        expect(store.data['WidgetTasks_7'], '[{"id":"1","title":"cached"}]');
+      },
+    );
+
+    test('clears a previous error state once the view loads again', () async {
+      final store = FakeHomeWidgetStore()
+        ..data['widget_view_7'] = 'project'
+        ..data['widget_project_id_7'] = '5'
+        ..data['widget_project_name_7'] = 'Work'
+        ..data['widget_state_7'] = 'error';
+      final taskService = MockTaskRepository()
+        ..getAllByProjectStub = (projectId, _) async =>
+            SuccessResponse<List<Task>>([_task(11, 'Open')], 200, {});
+
+      await updateWidgetInstance('7', store: store, taskService: taskService);
+
+      expect(store.data['widget_state_7'], 'ok');
+      expect(_storedTasks(store, '7').single['title'], 'Open');
+    });
+
     test('keeps the last good task list when the fetch fails', () async {
       final store = FakeHomeWidgetStore()
         ..data['widget_view_4'] = 'today'
@@ -253,6 +306,24 @@ void main() {
 
       expect(store.data['widget_title_4'], 'Today');
       expect(store.data['WidgetTasks_4'], '[{"id":"1","title":"cached"}]');
+      expect(store.data.containsKey('widget_state_4'), isFalse);
+    });
+
+    test('a transient failure does not mark the view invalid', () async {
+      final store = FakeHomeWidgetStore()
+        ..data['widget_view_7'] = 'project'
+        ..data['widget_project_id_7'] = '-3'
+        ..data['widget_project_name_7'] = 'Widget Filter Slice4'
+        ..data['widget_state_7'] = 'ok'
+        ..data['WidgetTasks_7'] = '[{"id":"1","title":"cached"}]';
+      final taskService = MockTaskRepository()
+        ..getAllByProjectStub = (projectId, _) async =>
+            ErrorResponse<List<Task>>(500, {}, {'message': 'boom'});
+
+      await updateWidgetInstance('7', store: store, taskService: taskService);
+
+      expect(store.data['widget_state_7'], 'ok');
+      expect(store.data['WidgetTasks_7'], '[{"id":"1","title":"cached"}]');
     });
   });
 
