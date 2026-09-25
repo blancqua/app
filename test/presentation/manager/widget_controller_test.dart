@@ -189,6 +189,42 @@ void main() {
       expect(stored.single['today'], isTrue);
     });
 
+    test(
+      'a view switch from the widget surface re-renders only that instance',
+      () async {
+        // Two instances, both on today, both already rendered.
+        final store = FakeHomeWidgetStore()
+          ..data['widget_view_4'] = 'today'
+          ..data['widget_view_9'] = 'today';
+        final taskService = MockTaskRepository()
+          ..getByFilterStringStub = (filterString, _) async {
+            return SuccessResponse([_task(1, 'Today Task')], 200, {});
+          }
+          ..getAllByProjectStub = (projectId, _) async {
+            return SuccessResponse([_task(21, 'Work Task')], 200, {});
+          };
+
+        await updateWidgetInstance('4', store: store, taskService: taskService);
+        await updateWidgetInstance('9', store: store, taskService: taskService);
+
+        // The native view picker switches instance 9 to a project by
+        // writing the same preference keys the configuration screen
+        // writes, then asking for a per-instance update.
+        store.data['widget_view_9'] = 'project';
+        store.data['widget_project_id_9'] = '5';
+        store.data['widget_project_name_9'] = 'Work';
+        store.data.remove('widget_state_9');
+
+        await updateWidgetInstance('9', store: store, taskService: taskService);
+
+        expect(store.data['widget_title_9'], 'Work');
+        expect(_storedTasks(store, '9').single['title'], 'Work Task');
+        // The other instance keeps its own view and rendered data.
+        expect(store.data['widget_title_4'], 'Today');
+        expect(_storedTasks(store, '4').single['title'], 'Today Task');
+      },
+    );
+
     test('defaults to the today view when none is stored', () async {
       final store = FakeHomeWidgetStore();
       final requestedFilters = <String>[];
