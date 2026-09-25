@@ -45,6 +45,7 @@ class AppWidgetReciever : HomeWidgetGlanceWidgetReceiver<AppWidget>() {
         deletedIds.forEach { id ->
             editor.remove("WidgetTasks_$id")
             editor.remove("widget_view_$id")
+            editor.remove("widget_state_$id")
             editor.remove("widget_theme_$id")
             editor.remove("widget_opacity_$id")
             editor.remove("widget_dynamic_color_$id")

@@ -192,6 +192,9 @@ class WidgetConfigureActivity : Activity() {
 
             val editor = prefs.edit()
             editor.putString("widget_view_$appWidgetId", viewName)
+            // Clear any error state from the previous view so the widget
+            // doesn't flash it until the fresh update lands.
+            editor.remove("widget_state_$appWidgetId")
             editor.putString("widget_theme_$appWidgetId", selectedTheme.prefName)
             editor.putString("widget_opacity_$appWidgetId", opacitySeekbar.progress.toString())
             editor.putString("widget_dynamic_color_$appWidgetId", dynamicColorCheckbox.isChecked.toString())

@@ -176,6 +176,12 @@ Future<void> updateWidgetForId(String? widgetId) async {
 /// Saved filters are configured like projects (view `project` with a
 /// negative project id); the server resolves the id to the filter
 /// expression, and only the filter's undone tasks are rendered.
+///
+/// A successful fetch also records `widget_state_<id> = 'ok'`; a permanent
+/// failure (403/404, or a project view with no stored id — the configured
+/// view is gone or broken) records `'error'`, which the native widget
+/// renders as an explicit error state instead of the stale cached list.
+/// Transient failures keep the last good cache and the previous state.
 Future<void> updateWidgetInstance(
   String widgetId, {
   required HomeWidgetStore store,
@@ -188,6 +194,7 @@ Future<void> updateWidgetInstance(
   List<Task> tasks = [];
   String title = view.displayName;
   bool success = true;
+  bool viewInvalid = false;
 
   switch (view) {
     case WidgetView.inbox:
@@ -228,15 +235,27 @@ Future<void> updateWidgetInstance(
         success = result.isSuccessful;
         if (success) {
           tasks = result.toSuccess().body.where((t) => !t.done).toList();
+        } else if (result.isError) {
+          final statusCode = result.toError().statusCode;
+          viewInvalid = statusCode == 403 || statusCode == 404;
         }
+      } else {
+        // A project view without a stored id is an invalid configured view.
+        success = false;
+        viewInvalid = true;
       }
       title = projectName ?? view.displayName;
   }
 
   await store.write('widget_title_$widgetId', title);
-  // Don't clobber a good cache with an empty list when the fetch failed.
   if (success) {
+    await store.write('widget_state_$widgetId', 'ok');
+    // Don't clobber a good cache with an empty list when the fetch failed.
     await _saveWidgetTasks(store, widgetId, tasks);
+  } else if (viewInvalid) {
+    // The native side renders an explicit error state instead of the
+    // (stale) cached task list; the cache itself is kept untouched.
+    await store.write('widget_state_$widgetId', 'error');
   }
 }
 

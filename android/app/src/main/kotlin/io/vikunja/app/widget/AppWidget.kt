@@ -180,6 +180,10 @@ class AppWidget : GlanceAppWidget() {
         )
         val viewType = prefs.getString("widget_view_$appWidgetId", "today") ?: "today"
         val widgetTitle = prefs.getString("widget_title_$appWidgetId", "Vikunja") ?: "Vikunja"
+        // Written by the Dart update pipeline: 'error' means the configured
+        // project or saved filter is gone for good (403/404) — show an
+        // explicit error instead of the stale cached list or "No tasks".
+        val isViewStateError = prefs.getString("widget_state_$appWidgetId", "ok") == "error"
         val widgetTheme =
             WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
         val widgetOpacity =
@@ -206,7 +210,9 @@ class AppWidget : GlanceAppWidget() {
             // Sizes too short for a task row render the title bar alone
             // instead of squeezing a clipped half row into the instance.
             if (!layout.isHeaderOnly) {
-                if (todayTasks.isEmpty() and otherTasks.isEmpty()) {
+                if (isViewStateError) {
+                    ErrorView(colors)
+                } else if (todayTasks.isEmpty() and otherTasks.isEmpty()) {
                     EmptyView(colors)
                 } else {
                     TaskList(context, prefs, colors, layout, otherSectionLabel)
@@ -366,6 +372,29 @@ class AppWidget : GlanceAppWidget() {
                     fontSize = 16.sp, color = colors.text
                 )
             )
+        }
+    }
+
+    @Composable
+    private fun ErrorView(colors: WidgetColors) {
+        Box(
+            modifier = GlanceModifier.fillMaxSize().padding(12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column {
+                Text(
+                    text = "Couldn't load this view", style = TextStyle(
+                        fontSize = 16.sp, color = colors.text
+                    )
+                )
+                Text(
+                    text = "It may have been deleted. Tap ⚙ to pick another.",
+                    style = TextStyle(
+                        fontSize = 13.sp, color = colors.text
+                    ),
+                    maxLines = 2,
+                )
+            }
         }
     }
 }
