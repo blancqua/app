@@ -209,14 +209,18 @@ void main() {
 
         // The native view picker switches instance 9 to a project by
         // writing the same preference keys the configuration screen
-        // writes, then asking for a per-instance update.
+        // writes (plus an optimistic loading state and title), then
+        // asking for a per-instance update.
         store.data['widget_view_9'] = 'project';
         store.data['widget_project_id_9'] = '5';
         store.data['widget_project_name_9'] = 'Work';
-        store.data.remove('widget_state_9');
+        store.data['widget_title_9'] = 'Work';
+        store.data['widget_state_9'] = 'loading';
+        store.data.remove('WidgetTasks_9');
 
         await updateWidgetInstance('9', store: store, taskService: taskService);
 
+        expect(store.data['widget_state_9'], 'ok');
         expect(store.data['widget_title_9'], 'Work');
         expect(_storedTasks(store, '9').single['title'], 'Work Task');
         // The other instance keeps its own view and rendered data.

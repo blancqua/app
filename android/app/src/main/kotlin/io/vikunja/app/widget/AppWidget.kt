@@ -171,7 +171,10 @@ class AppWidget : GlanceAppWidget() {
         // Written by the Dart update pipeline: 'error' means the configured
         // project or saved filter is gone for good (403/404) — show an
         // explicit error instead of the stale cached list or "No tasks".
+        // 'loading' is written by the view picker while the freshly chosen
+        // view's tasks are being fetched.
         val isViewStateError = prefs.getString("widget_state_$appWidgetId", "ok") == "error"
+        val isLoadingView = prefs.getString("widget_state_$appWidgetId", "ok") == "loading"
         val otherSectionLabel = when (viewType) {
             "upcoming" -> "This Week:"
             "inbox", "project" -> "Tasks:"
@@ -184,6 +187,8 @@ class AppWidget : GlanceAppWidget() {
             WidgetTitleBar(widgetTitle)
             if (isViewStateError) {
                 ErrorView()
+            } else if (isLoadingView) {
+                LoadingView()
             } else if (todayTasks.isEmpty() and otherTasks.isEmpty()) {
                 EmptyView()
             } else {
@@ -332,6 +337,23 @@ class AppWidget : GlanceAppWidget() {
         ) {
             Text(
                 text = "No tasks", style = TextStyle(
+                    fontSize = 16.sp, color = ColorProvider(
+                        Color.Black, Color.White
+                    )
+                )
+            )
+        }
+    }
+
+    @Composable
+    private fun LoadingView() {
+        Box(
+            modifier = GlanceModifier.fillMaxSize()
+                .background(ColorProvider(Color.White, Color(0xFF1f2937))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Loading…", style = TextStyle(
                     fontSize = 16.sp, color = ColorProvider(
                         Color.Black, Color.White
                     )

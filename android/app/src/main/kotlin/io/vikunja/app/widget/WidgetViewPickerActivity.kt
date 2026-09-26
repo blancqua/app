@@ -14,11 +14,16 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
+import es.antonborri.home_widget.HomeWidgetGlanceState
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
 import io.vikunja.app.R
+import kotlinx.coroutines.runBlocking
 
 /**
  * Lightweight view switcher opened straight from the widget surface: a
@@ -158,9 +163,13 @@ class WidgetViewPickerActivity : Activity() {
         val prefs = HomeWidgetPlugin.getData(this)
         prefs.edit {
             putString("widget_view_$appWidgetId", choice.viewName)
-            // Clear any error state from the previous view so the widget
-            // doesn't flash it until the fresh update lands.
-            remove("widget_state_$appWidgetId")
+            // Optimistic re-render: publish the new view's title and a
+            // loading state right away so the switch is visible immediately,
+            // instead of showing the previous view's list until the
+            // background fetch lands.
+            putString("widget_title_$appWidgetId", choice.title)
+            putString("widget_state_$appWidgetId", "loading")
+            remove("WidgetTasks_$appWidgetId")
 
             if (choice.projectId != null) {
                 putString("widget_project_id_$appWidgetId", choice.projectId.toString())
@@ -178,6 +187,25 @@ class WidgetViewPickerActivity : Activity() {
                 widgetIds.add(appWidgetId.toString())
             }
             putString("WidgetIds", Gson().toJson(widgetIds))
+            commit()
+        }
+
+        // Recompose this instance right away — the same state-refresh +
+        // update sequence home_widget's receiver runs when Dart calls
+        // updateWidget — so the optimistic title/loading state shows without
+        // waiting for the background isolate.
+        runBlocking {
+            val glanceId =
+                GlanceAppWidgetManager(this@WidgetViewPickerActivity).getGlanceIdBy(appWidgetId)
+            AppWidget().apply {
+                val stateDefinition = stateDefinition as HomeWidgetGlanceStateDefinition
+                updateAppWidgetState<HomeWidgetGlanceState>(
+                    this@WidgetViewPickerActivity,
+                    stateDefinition,
+                    glanceId,
+                ) { currentState -> currentState }
+                update(this@WidgetViewPickerActivity, glanceId)
+            }
         }
 
         val uri = "vikunja-app://updatewidget?widgetId=$appWidgetId".toUri()
