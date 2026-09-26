@@ -87,6 +87,21 @@ class ConfigureWidgetAction : ActionCallback {
     }
 }
 
+class SwitchViewAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
+        val intent = Intent(context, WidgetViewPickerActivity::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+}
+
 class AppWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(WidgetLayouts.sizeCandidates)
     private var todayTasks: MutableList<Task> = ArrayList()
@@ -278,6 +293,17 @@ class AppWidget : GlanceAppWidget() {
                 iconColor = null,
                 textColor = colors.titleBarText,
                 actions = {
+                    Box(
+                        modifier = GlanceModifier.padding(end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircleIconButton(
+                            enabled = true,
+                            onClick = actionRunCallback<SwitchViewAction>(),
+                            imageProvider = ImageProvider(R.drawable.expand_more),
+                            contentDescription = "Switch view",
+                        )
+                    }
                     Box(
                         modifier = GlanceModifier.padding(end = 4.dp, top = 4.dp, bottom = 4.dp),
                         contentAlignment = Alignment.Center
