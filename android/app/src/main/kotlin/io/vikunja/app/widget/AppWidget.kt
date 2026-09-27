@@ -87,6 +87,21 @@ class ConfigureWidgetAction : ActionCallback {
     }
 }
 
+class SwitchViewAction : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters,
+    ) {
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(glanceId)
+        val intent = Intent(context, WidgetViewPickerActivity::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+}
+
 class AppWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Responsive(WidgetLayouts.sizeCandidates)
     private var todayTasks: MutableList<Task> = ArrayList()
@@ -183,7 +198,10 @@ class AppWidget : GlanceAppWidget() {
         // Written by the Dart update pipeline: 'error' means the configured
         // project or saved filter is gone for good (403/404) — show an
         // explicit error instead of the stale cached list or "No tasks".
+        // 'loading' is written by the view picker while the freshly chosen
+        // view's tasks are being fetched.
         val isViewStateError = prefs.getString("widget_state_$appWidgetId", "ok") == "error"
+        val isLoadingView = prefs.getString("widget_state_$appWidgetId", "ok") == "loading"
         val widgetTheme =
             WidgetTheme.fromPref(prefs.getString("widget_theme_$appWidgetId", null))
         val widgetOpacity =
@@ -212,6 +230,8 @@ class AppWidget : GlanceAppWidget() {
             if (!layout.isHeaderOnly) {
                 if (isViewStateError) {
                     ErrorView(colors)
+                } else if (isLoadingView) {
+                    LoadingView(colors)
                 } else if (todayTasks.isEmpty() and otherTasks.isEmpty()) {
                     EmptyView(colors)
                 } else {
@@ -278,6 +298,17 @@ class AppWidget : GlanceAppWidget() {
                 iconColor = null,
                 textColor = colors.titleBarText,
                 actions = {
+                    Box(
+                        modifier = GlanceModifier.padding(end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircleIconButton(
+                            enabled = true,
+                            onClick = actionRunCallback<SwitchViewAction>(),
+                            imageProvider = ImageProvider(R.drawable.expand_more),
+                            contentDescription = "Switch view",
+                        )
+                    }
                     Box(
                         modifier = GlanceModifier.padding(end = 4.dp, top = 4.dp, bottom = 4.dp),
                         contentAlignment = Alignment.Center
@@ -369,6 +400,20 @@ class AppWidget : GlanceAppWidget() {
         ) {
             Text(
                 text = "No tasks", style = TextStyle(
+                    fontSize = 16.sp, color = colors.text
+                )
+            )
+        }
+    }
+
+    @Composable
+    private fun LoadingView(colors: WidgetColors) {
+        Box(
+            modifier = GlanceModifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Loading…", style = TextStyle(
                     fontSize = 16.sp, color = colors.text
                 )
             )
