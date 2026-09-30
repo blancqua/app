@@ -82,7 +82,7 @@ Future<bool> updateTasks() async {
     return Future.value(true);
   }
 
-  Client client = Client(base: base);
+  Client client = Client(base: base, requestTimeout: widgetRequestTimeout);
   tz.initializeTimeZones();
 
   var ignoreCertificates = await datasource.getIgnoreCertificates();
