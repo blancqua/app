@@ -260,7 +260,7 @@ void main() {
       expect(_storedTasks(store, '7').single['title'], 'Filter Task');
     });
 
-    test('a fetch that keeps timing out keeps the loading state', () async {
+    test('a fetch that keeps timing out surfaces the error state', () async {
       final store = FakeHomeWidgetStore()
         ..data['widget_view_7'] = 'project'
         ..data['widget_project_id_7'] = '-2'
@@ -279,7 +279,9 @@ void main() {
       await updateWidgetInstance('7', store: store, taskService: taskService);
 
       expect(calls, 2);
-      expect(store.data['widget_state_7'], 'loading');
+      // The picker dropped the previous view's cache when switching, so a
+      // persistent failure must not leave the widget on the loading state.
+      expect(store.data['widget_state_7'], 'error');
       expect(store.data.containsKey('WidgetTasks_7'), isFalse);
     });
 

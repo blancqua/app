@@ -19,7 +19,10 @@ import com.google.gson.reflect.TypeToken
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 import io.vikunja.app.R
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Lightweight view switcher opened straight from the widget surface: a
@@ -188,7 +191,9 @@ class WidgetViewPickerActivity : Activity() {
 
         // Recompose this instance right away so the optimistic title/loading
         // state shows without waiting for the background isolate.
-        runBlocking { recomposeWidgetInstance(this@WidgetViewPickerActivity, appWidgetId) }
+        CoroutineScope(SupervisorJob() + Dispatchers.Main).launch {
+            recomposeWidgetInstance(this@WidgetViewPickerActivity, appWidgetId)
+        }
 
         val uri = "vikunja-app://updatewidget?widgetId=$appWidgetId".toUri()
         HomeWidgetBackgroundIntent.getBroadcast(this, uri).send()

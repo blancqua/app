@@ -143,13 +143,9 @@ class SwitchViewAction : ActionCallback {
  * runs when Dart calls updateWidget, usable without waiting for the
  * background isolate.
  */
-internal suspend fun recomposeWidgetInstance(
-    context: Context,
-    appWidgetId: Int,
-    widget: AppWidget = AppWidget(),
-) {
+internal suspend fun recomposeWidgetInstance(context: Context, appWidgetId: Int) {
     val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(appWidgetId)
-    widget.apply {
+    AppWidget().apply {
         val stateDefinition = stateDefinition as HomeWidgetGlanceStateDefinition
         updateAppWidgetState<HomeWidgetGlanceState>(
             context,
