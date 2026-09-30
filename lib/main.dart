@@ -73,10 +73,12 @@ void main() async {
   }
   try {
     if (!kIsWeb) {
-      Workmanager().initialize(callbackDispatcher);
-      // Schedule the periodic widget sync straight away (honors the
-      // refresh interval saved in settings; skips it when set to 0).
-      registerWidgetRefreshTask();
+      await Workmanager().initialize(callbackDispatcher);
+      // Schedule the periodic widget sync straight away (15 minutes by
+      // default; honors the refresh interval saved in settings, where 0
+      // disables it) — it is what surfaces tasks created outside this
+      // device on the widget.
+      await registerWidgetRefreshTask();
     }
   } catch (e) {
     developer.log("Failed to initialize workmanager: $e");
