@@ -46,6 +46,29 @@ void callbackDispatcher() {
   });
 }
 
+/// (Re)registers the periodic update-tasks sync with the currently
+/// configured interval, so the widget keeps picking up external changes
+/// (tasks added from the web or other devices) without the app being
+/// opened. Called on every app start and whenever the interval setting
+/// changes; an interval of 0 disables the task.
+Future<void> registerPeriodicSync() async {
+  if (kIsWeb) return;
+
+  final datasource = SettingsDatasource(FlutterSecureStorage());
+  final minutes = await datasource.getRefreshInterval();
+
+  await Workmanager().cancelAll();
+  if (minutes > 0) {
+    await Workmanager().registerPeriodicTask(
+      "update-tasks",
+      "update-tasks",
+      frequency: Duration(minutes: minutes),
+      constraints: Constraints(networkType: NetworkType.connected),
+      initialDelay: Duration(seconds: 15),
+    );
+  }
+}
+
 /// Loads all tasks from the server to update the widget
 /// and schedule notifications for due tasks
 ///
