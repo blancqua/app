@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:background_downloader/background_downloader.dart'
@@ -228,6 +229,78 @@ void main() {
         expect(_storedTasks(store, '4').single['title'], 'Today Task');
       },
     );
+
+    test('retries a timed-out fetch before resolving the view', () async {
+      final store = FakeHomeWidgetStore()
+        ..data['widget_view_7'] = 'project'
+        ..data['widget_project_id_7'] = '-2'
+        ..data['widget_project_name_7'] = 'My Open Tasks'
+        ..data['widget_state_7'] = 'loading';
+      var calls = 0;
+      final taskService = MockTaskRepository()
+        ..getAllByProjectStub = (projectId, _) async {
+          calls++;
+          if (calls == 1) {
+            return ExceptionResponse<List<Task>>(
+              TimeoutException('request timed out'),
+              StackTrace.current,
+            );
+          }
+          return SuccessResponse<List<Task>>(
+            [_task(5, 'Filter Task')],
+            200,
+            {},
+          );
+        };
+
+      await updateWidgetInstance('7', store: store, taskService: taskService);
+
+      expect(calls, 2);
+      expect(store.data['widget_state_7'], 'ok');
+      expect(_storedTasks(store, '7').single['title'], 'Filter Task');
+    });
+
+    test('a fetch that keeps timing out keeps the loading state', () async {
+      final store = FakeHomeWidgetStore()
+        ..data['widget_view_7'] = 'project'
+        ..data['widget_project_id_7'] = '-2'
+        ..data['widget_project_name_7'] = 'My Open Tasks'
+        ..data['widget_state_7'] = 'loading';
+      var calls = 0;
+      final taskService = MockTaskRepository()
+        ..getAllByProjectStub = (projectId, _) async {
+          calls++;
+          return ExceptionResponse<List<Task>>(
+            TimeoutException('request timed out'),
+            StackTrace.current,
+          );
+        };
+
+      await updateWidgetInstance('7', store: store, taskService: taskService);
+
+      expect(calls, 2);
+      expect(store.data['widget_state_7'], 'loading');
+      expect(store.data.containsKey('WidgetTasks_7'), isFalse);
+    });
+
+    test('a definitive server error is not retried', () async {
+      final store = FakeHomeWidgetStore()
+        ..data['widget_view_7'] = 'project'
+        ..data['widget_project_id_7'] = '5'
+        ..data['widget_project_name_7'] = 'Work'
+        ..data['WidgetTasks_7'] = '[{"id":"1","title":"cached"}]';
+      var calls = 0;
+      final taskService = MockTaskRepository()
+        ..getAllByProjectStub = (projectId, _) async {
+          calls++;
+          return ErrorResponse<List<Task>>(500, {}, {'message': 'boom'});
+        };
+
+      await updateWidgetInstance('7', store: store, taskService: taskService);
+
+      expect(calls, 1);
+      expect(store.data['WidgetTasks_7'], '[{"id":"1","title":"cached"}]');
+    });
 
     test('defaults to the today view when none is stored', () async {
       final store = FakeHomeWidgetStore();
