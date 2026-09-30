@@ -14,13 +14,9 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.glance.appwidget.state.updateAppWidgetState
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
-import es.antonborri.home_widget.HomeWidgetGlanceState
-import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
 import io.vikunja.app.R
 import kotlinx.coroutines.runBlocking
@@ -190,23 +186,9 @@ class WidgetViewPickerActivity : Activity() {
             commit()
         }
 
-        // Recompose this instance right away — the same state-refresh +
-        // update sequence home_widget's receiver runs when Dart calls
-        // updateWidget — so the optimistic title/loading state shows without
-        // waiting for the background isolate.
-        runBlocking {
-            val glanceId =
-                GlanceAppWidgetManager(this@WidgetViewPickerActivity).getGlanceIdBy(appWidgetId)
-            AppWidget().apply {
-                val stateDefinition = stateDefinition as HomeWidgetGlanceStateDefinition
-                updateAppWidgetState<HomeWidgetGlanceState>(
-                    this@WidgetViewPickerActivity,
-                    stateDefinition,
-                    glanceId,
-                ) { currentState -> currentState }
-                update(this@WidgetViewPickerActivity, glanceId)
-            }
-        }
+        // Recompose this instance right away so the optimistic title/loading
+        // state shows without waiting for the background isolate.
+        runBlocking { recomposeWidgetInstance(this@WidgetViewPickerActivity, appWidgetId) }
 
         val uri = "vikunja-app://updatewidget?widgetId=$appWidgetId".toUri()
         HomeWidgetBackgroundIntent.getBroadcast(this, uri).send()
