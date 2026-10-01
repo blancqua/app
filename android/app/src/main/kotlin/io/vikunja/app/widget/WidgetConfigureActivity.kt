@@ -56,9 +56,12 @@ class WidgetConfigureActivity : Activity() {
 
         val currentView = prefs.getString("widget_view_$appWidgetId", "today") ?: "today"
         val currentProjectId = prefs.getString("widget_project_id_$appWidgetId", "0")?.toIntOrNull() ?: 0
+        val currentFontSize =
+            WidgetFontSize.fromPref(prefs.getString("widget_font_size_$appWidgetId", null))
 
         val scrollView = findViewById<ScrollView>(R.id.scroll_view)
         val radioGroup = findViewById<RadioGroup>(R.id.view_radio_group)
+        val fontSizeRadioGroup = findViewById<RadioGroup>(R.id.font_size_radio_group)
         val projectSpinner = findViewById<Spinner>(R.id.project_spinner)
         val projectLayout = findViewById<View>(R.id.project_layout)
         val saveButton = findViewById<Button>(R.id.save_button)
@@ -81,6 +84,12 @@ class WidgetConfigureActivity : Activity() {
                 if (idx >= 0) projectSpinner.setSelection(idx)
             }
             else -> radioGroup.check(R.id.radio_today)
+        }
+
+        when (currentFontSize) {
+            WidgetFontSize.COMPACT -> fontSizeRadioGroup.check(R.id.radio_font_compact)
+            WidgetFontSize.LARGE -> fontSizeRadioGroup.check(R.id.radio_font_large)
+            WidgetFontSize.AUTO -> fontSizeRadioGroup.check(R.id.radio_font_auto)
         }
 
         // Reset scroll to top after layout pass (prevents auto-scroll to checked radio)
@@ -108,8 +117,15 @@ class WidgetConfigureActivity : Activity() {
                 return@setOnClickListener
             }
 
+            val selectedFontSize = when (fontSizeRadioGroup.checkedRadioButtonId) {
+                R.id.radio_font_compact -> WidgetFontSize.COMPACT
+                R.id.radio_font_large -> WidgetFontSize.LARGE
+                else -> WidgetFontSize.AUTO
+            }
+
             val editor = prefs.edit()
             editor.putString("widget_view_$appWidgetId", viewName)
+            editor.putString("widget_font_size_$appWidgetId", selectedFontSize.prefName)
 
             if (viewName == "project") {
                 val project = projects[projectSpinner.selectedItemPosition]

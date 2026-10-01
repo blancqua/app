@@ -36,6 +36,11 @@ data class WidgetLayout(
  * due-date column so task titles keep room; heights below the comfortable
  * tier drop the section labels, which would otherwise cost a row each.
  *
+ * A [WidgetFontSize] preference overrides the height-derived tier: compact
+ * or large pin their density at any size, auto (the default) keeps the
+ * size-driven tiers above. The capacity model follows whichever density is
+ * in effect, so an override never clips — it only changes how many rows fit.
+ *
  * [maxTaskRows] models what fits: title bar (48dp) plus list padding minus
  * the section labels, divided by the row height. Instances shorter than one
  * row are [WidgetLayout.isHeaderOnly] rather than clipping half a row.
@@ -80,12 +85,22 @@ object WidgetLayouts {
      * The layout for a widget instance of the given size.
      * [sectionCount] is how many of the widget's task sections actually hold
      * tasks (0-2); its labels only reserve height when shown.
+     * [fontSize] pins the density tier when not [WidgetFontSize.AUTO].
      */
-    fun forSize(widthDp: Int, heightDp: Int, sectionCount: Int = 2): WidgetLayout {
-        val density = when {
-            heightDp < COMPACT_MAX_HEIGHT_DP -> compact
-            heightDp >= COMFORTABLE_MIN_HEIGHT_DP -> comfortableDensity
-            else -> medium
+    fun forSize(
+        widthDp: Int,
+        heightDp: Int,
+        sectionCount: Int = 2,
+        fontSize: WidgetFontSize = WidgetFontSize.AUTO,
+    ): WidgetLayout {
+        val density = when (fontSize) {
+            WidgetFontSize.COMPACT -> compact
+            WidgetFontSize.LARGE -> comfortableDensity
+            WidgetFontSize.AUTO -> when {
+                heightDp < COMPACT_MAX_HEIGHT_DP -> compact
+                heightDp >= COMFORTABLE_MIN_HEIGHT_DP -> comfortableDensity
+                else -> medium
+            }
         }
         val showSectionLabels = heightDp >= COMFORTABLE_MIN_HEIGHT_DP
         return WidgetLayout(
