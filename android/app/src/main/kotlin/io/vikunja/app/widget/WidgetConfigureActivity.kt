@@ -63,10 +63,13 @@ class WidgetConfigureActivity : Activity() {
         val currentOpacity = WidgetOpacity.fromPref(prefs.getString("widget_opacity_$appWidgetId", null))
         val currentDynamicColor =
             WidgetDynamicColor.fromPref(prefs.getString("widget_dynamic_color_$appWidgetId", null))
+        val currentFontSize =
+            WidgetFontSize.fromPref(prefs.getString("widget_font_size_$appWidgetId", null))
 
         val scrollView = findViewById<ScrollView>(R.id.scroll_view)
         val radioGroup = findViewById<RadioGroup>(R.id.view_radio_group)
         val themeRadioGroup = findViewById<RadioGroup>(R.id.theme_radio_group)
+        val fontSizeRadioGroup = findViewById<RadioGroup>(R.id.font_size_radio_group)
         val projectSpinner = findViewById<Spinner>(R.id.project_spinner)
         val projectLayout = findViewById<View>(R.id.project_layout)
         val filterSpinner = findViewById<Spinner>(R.id.filter_spinner)
@@ -134,6 +137,12 @@ class WidgetConfigureActivity : Activity() {
             WidgetTheme.AUTO -> themeRadioGroup.check(R.id.radio_theme_auto)
         }
 
+        when (currentFontSize) {
+            WidgetFontSize.COMPACT -> fontSizeRadioGroup.check(R.id.radio_font_compact)
+            WidgetFontSize.LARGE -> fontSizeRadioGroup.check(R.id.radio_font_large)
+            WidgetFontSize.AUTO -> fontSizeRadioGroup.check(R.id.radio_font_auto)
+        }
+
         if (WidgetDynamicColors.isSupported()) {
             dynamicColorCheckbox.isChecked = currentDynamicColor
         } else {
@@ -151,6 +160,7 @@ class WidgetConfigureActivity : Activity() {
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+
 
         // Reset scroll to top after layout pass (prevents auto-scroll to checked radio)
         scrollView.post { scrollView.scrollTo(0, 0) }
@@ -190,6 +200,12 @@ class WidgetConfigureActivity : Activity() {
                 else -> WidgetTheme.AUTO
             }
 
+            val selectedFontSize = when (fontSizeRadioGroup.checkedRadioButtonId) {
+                R.id.radio_font_compact -> WidgetFontSize.COMPACT
+                R.id.radio_font_large -> WidgetFontSize.LARGE
+                else -> WidgetFontSize.AUTO
+            }
+
             val editor = prefs.edit()
             editor.putString("widget_view_$appWidgetId", viewName)
             // Clear any error state from the previous view so the widget
@@ -198,6 +214,7 @@ class WidgetConfigureActivity : Activity() {
             editor.putString("widget_theme_$appWidgetId", selectedTheme.prefName)
             editor.putString("widget_opacity_$appWidgetId", opacitySeekbar.progress.toString())
             editor.putString("widget_dynamic_color_$appWidgetId", dynamicColorCheckbox.isChecked.toString())
+            editor.putString("widget_font_size_$appWidgetId", selectedFontSize.prefName)
 
             if (viewName == "project") {
                 val spinner = if (isFilterSelection) filterSpinner else projectSpinner

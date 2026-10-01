@@ -182,6 +182,43 @@
 
         </LinearLayout>
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Font size"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp" />
+
+        <RadioGroup
+            android:id="@+id/font_size_radio_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/radio_font_auto"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Auto (fit widget size)"
+                android:padding="8dp" />
+
+            <RadioButton
+                android:id="@+id/radio_font_compact"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Compact (more rows)"
+                android:padding="8dp" />
+
+            <RadioButton
+                android:id="@+id/radio_font_large"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Large (fewer rows)"
+                android:padding="8dp" />
+
+        </RadioGroup>
+
         <Button
             android:id="@+id/save_button"
             android:layout_width="wrap_content"

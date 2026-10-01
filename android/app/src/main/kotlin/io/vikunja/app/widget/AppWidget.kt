@@ -260,10 +260,13 @@ class AppWidget : GlanceAppWidget() {
 
         val size = LocalSize.current
         val sectionCount = listOf(todayTasks, otherTasks).count { it.isNotEmpty() }
+        val fontSize =
+            WidgetFontSize.fromPref(prefs.getString("widget_font_size_$appWidgetId", null))
         val layout = WidgetLayouts.forSize(
             widthDp = size.width.value.toInt(),
             heightDp = size.height.value.toInt(),
             sectionCount = sectionCount,
+            fontSize = fontSize,
         )
         Log.d(
             "Widget",

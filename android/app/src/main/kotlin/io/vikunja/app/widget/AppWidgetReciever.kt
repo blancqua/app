@@ -50,6 +50,7 @@ class AppWidgetReciever : HomeWidgetGlanceWidgetReceiver<AppWidget>() {
             editor.remove("widget_opacity_$id")
             editor.remove("widget_dynamic_color_$id")
             editor.remove("widget_title_$id")
+            editor.remove("widget_font_size_$id")
             editor.remove("widget_project_id_$id")
             editor.remove("widget_project_name_$id")
         }
