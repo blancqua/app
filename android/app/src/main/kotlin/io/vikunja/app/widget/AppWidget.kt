@@ -59,6 +59,10 @@ import io.vikunja.app.MainActivity
 import io.vikunja.app.R
 import io.vikunja.app.INTENT_TYPE_ADD_TASK
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class CompleteTaskAction : ActionCallback {
     override suspend fun onAction(
