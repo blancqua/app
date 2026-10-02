@@ -197,6 +197,9 @@ class WidgetViewPickerActivity : Activity() {
 
         val uri = "vikunja-app://updatewidget?widgetId=$appWidgetId".toUri()
         HomeWidgetBackgroundIntent.getBroadcast(this, uri).send()
+        // The background pipeline's own rerender can be lost in a Glance
+        // session race; sweep so the fetched list reaches the surface.
+        scheduleRefreshSweeps(this, appWidgetId)
         finish()
     }
 }

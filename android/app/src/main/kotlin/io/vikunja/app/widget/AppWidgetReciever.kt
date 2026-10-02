@@ -30,6 +30,10 @@ class AppWidgetReciever : HomeWidgetGlanceWidgetReceiver<AppWidget>() {
         prefs.edit().putString("WidgetIds", Gson().toJson(widgetIds)).apply()
 
         HomeWidgetBackgroundIntent.getBroadcast(context, "vikunja-app://updatewidget".toUri()).send()
+        // The initial fetch's rerender races with the placement's Glance
+        // session work and can be lost outright; sweep so the first list
+        // reaches the surface without waiting for the next app open.
+        newlySeen.forEach { id -> scheduleRefreshSweeps(context, id.toInt()) }
     }
 
     // Ensures all inactive widgets are deleted.
