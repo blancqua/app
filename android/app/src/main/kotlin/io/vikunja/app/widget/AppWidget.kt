@@ -6,6 +6,8 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.text.format.DateFormat
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -60,6 +62,10 @@ import io.vikunja.app.INTENT_TYPE_OPEN_TASK
 import androidx.glance.appwidget.state.updateAppWidgetState
 import es.antonborri.home_widget.HomeWidgetPlugin
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class CompleteTaskAction : ActionCallback {
     override suspend fun onAction(
@@ -88,6 +94,7 @@ class CompleteTaskAction : ActionCallback {
             context, taskURI
         )
         backgroundIntent.send()
+        scheduleRefreshSweeps(context, appWidgetId)
     }
 
     companion object {
@@ -156,6 +163,38 @@ internal suspend fun recomposeWidgetInstance(context: Context, appWidgetId: Int)
             glanceId,
         ) { currentState -> currentState }
         update(context, glanceId)
+    }
+}
+
+/**
+ * Best-effort recomposes scheduled after a background update was requested.
+ *
+ * The plugin's own rerender — Dart's HomeWidget.updateWidget at the end of
+ * the background pipeline — races with Glance session work (observed losing
+ * the update outright during widget placement) and depends on a WorkManager
+ * job the OS may defer. Each pass here re-reads the current preferences and
+ * recomposes, so whenever the fetched data lands, a recompose follows within
+ * seconds instead of waiting for the next app open.
+ */
+internal fun scheduleRefreshSweeps(context: Context, appWidgetId: Int) {
+    val handler = Handler(Looper.getMainLooper())
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    for (delayMs in longArrayOf(2_000, 5_000, 10_000, 20_000)) {
+        handler.postDelayed(
+            {
+                scope.launch {
+                    try {
+                        recomposeWidgetInstance(context, appWidgetId)
+                    } catch (e: Exception) {
+                        Log.d(
+                            "Widget",
+                            "refresh sweep for widget $appWidgetId failed: ${e.message}",
+                        )
+                    }
+                }
+            },
+            delayMs,
+        )
     }
 }
 

@@ -21,6 +21,10 @@ import com.google.gson.reflect.TypeToken
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 import io.vikunja.app.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 data class WidgetProject(val id: Int, val title: String)
 
@@ -192,19 +196,39 @@ class WidgetConfigureActivity : Activity() {
 
             val editor = prefs.edit()
             editor.putString("widget_view_$appWidgetId", viewName)
-            // Clear any error state from the previous view so the widget
-            // doesn't flash it until the fresh update lands.
-            editor.remove("widget_state_$appWidgetId")
             editor.putString("widget_theme_$appWidgetId", selectedTheme.prefName)
             editor.putString("widget_opacity_$appWidgetId", opacitySeekbar.progress.toString())
             editor.putString("widget_dynamic_color_$appWidgetId", dynamicColorCheckbox.isChecked.toString())
 
+            var savedProjectId = currentProjectId
+            var savedProjectTitle: String? = null
             if (viewName == "project") {
                 val spinner = if (isFilterSelection) filterSpinner else projectSpinner
                 val project = selectedEntries.getOrNull(spinner.selectedItemPosition)
                     ?: return@setOnClickListener
+                savedProjectId = project.id
+                savedProjectTitle = project.title
                 editor.putString("widget_project_id_$appWidgetId", project.id.toString())
                 editor.putString("widget_project_name_$appWidgetId", project.title)
+            }
+
+            // A changed view (different view type, or a different
+            // project/filter) invalidates the cached list: publish the new
+            // title with a loading state and drop the stale cache — the same
+            // optimistic swap the view picker performs — so the recompose
+            // below never renders the old view's tasks under the new title.
+            // Saving the same view keeps the cache; only a leftover error
+            // state is cleared so it doesn't flash until the update lands.
+            val viewChanged = viewName != currentView || savedProjectId != currentProjectId
+            if (viewChanged) {
+                editor.putString(
+                    "widget_title_$appWidgetId",
+                    viewDisplayTitle(viewName, savedProjectTitle),
+                )
+                editor.putString("widget_state_$appWidgetId", "loading")
+                editor.remove("WidgetTasks_$appWidgetId")
+            } else {
+                editor.remove("widget_state_$appWidgetId")
             }
 
             val widgetIdsJson = prefs.getString("WidgetIds", "[]") ?: "[]"
@@ -217,12 +241,32 @@ class WidgetConfigureActivity : Activity() {
             editor.putString("WidgetIds", Gson().toJson(widgetIds))
             editor.apply()
 
+            // Recompose this instance right away: the saved preferences are
+            // native-side data, so the widget reflects the save immediately
+            // instead of waiting for the background fetch round-trip.
+            CoroutineScope(SupervisorJob() + Dispatchers.Main).launch {
+                recomposeWidgetInstance(this@WidgetConfigureActivity, appWidgetId)
+            }
+
             val uri = "vikunja-app://updatewidget?widgetId=$appWidgetId".toUri()
             HomeWidgetBackgroundIntent.getBroadcast(this, uri).send()
+            // The background pipeline's own rerender can be lost in a Glance
+            // session race; sweep so the fetched list reaches the surface.
+            scheduleRefreshSweeps(this, appWidgetId)
 
             val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             setResult(RESULT_OK, result)
             finish()
         }
     }
+
+    /** The title the Dart pipeline would write for a view, published natively. */
+    private fun viewDisplayTitle(viewName: String, projectTitle: String? = null): String =
+        when (viewName) {
+            "inbox" -> "Inbox"
+            "today" -> "Today"
+            "upcoming" -> "Upcoming"
+            "project" -> projectTitle ?: "Project"
+            else -> "Vikunja"
+        }
 }
